@@ -1,0 +1,45 @@
+﻿# NotificationServer
+
+[**NotificationServer**](https://github.com/matjazt/NotificationServer) is a demonstration project showcasing the integration of a C# application with [SvcWatchDog](https://github.com/matjazt/SvcWatchDog). It functions as an independent REST service, offering a method to display message box notifications to all logged-in users
+
+## How it works
+
+**NotificationServer** is monitored by an internal **SvcWatchDogClient** and an external **SvcWatchDog**, working collaboratively. **SvcWatchDogClient** detects internal issues such as frozen threads and timeouts, and when a problem is identified, it initiates an application shutdown, relying on **SvcWatchDog** to restart it. If the shutdown process fails for any reason, **SvcWatchDog** detects the issue through missing **UDP pings** and forcefully restarts the service.
+
+## How to install service
+
+Preparation steps:
+- Build release version of **NotificationServer**. **Visual Studio 2022** is recommended, but you can use any other IDE that supports .NET 9.0.
+- Download [SvcWatchDog](https://github.com/matjazt/SvcWatchDog) - binary or source, it's up to you
+- Customize `scripts\pack.bat` to match your SvcWatchDog folder
+- Run `pack.bat` to prepare the distribution folder (**NotificationServerDist**)
+- copy **NotificationServerDist** contents to your preffered location
+
+Installation steps (**Admin credentials required**):
+- install service: `service\NotificationServerService -i`
+- start service: `net start NotificationServerService`
+- stop service: `net stop NotificationServerService`
+- uninstall service: `service\NotificationServerService -u`
+
+## How to test
+
+First you need to either run the software, either install it as a Windows service.  
+Then you can use Curl to send a REST request:  
+
+`curl -X POST "http://localhost:7051/NotifyUsers" -H "sharedSecret: Q20mSdspXdnNwFEkY0eJ" -H "Content-Type: application/json" --data "{ \"title\": \"Test message\", \"text\": \"Have a great day!\"}"`
+
+A message box should pop up, containing the title and message from your test request.
+
+## Dependencies
+
+This project relies on several NuGet packages to enhance logging, API documentation, and OpenAPI integration. Below is a list of the included dependencies:
+- **Microsoft.AspNetCore.OpenApi**: Provides OpenAPI support for ASP.NET Core applications, enabling seamless API documentation and integration.
+- **Serilog.Extensions.Logging**: Integrates Serilog with ASP.NET Core’s logging framework, allowing structured logging across the application.
+- **Serilog.Sinks.Console**: A Serilog sink that outputs logs to the console for easy debugging and real-time monitoring.
+- **Serilog.Sinks.File**: Enables log storage in a file, providing persistent logging capabilities for audit and analysis.
+- **Swashbuckle.AspNetCore**: Simplifies API documentation and testing by integrating Swagger UI with ASP.NET Core applications.
+
+## Contact
+
+If you have any questions about the demo, I encourage you to [open an issue on GitHub](https://github.com/matjazt/SvcWatchDog/issues).
+In case you would like to contact me directly, you can do so at: mt.dev[at]gmx.com .

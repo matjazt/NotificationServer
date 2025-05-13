@@ -1,0 +1,46 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+	<PropertyGroup>
+		<TargetFramework>net9.0</TargetFramework>
+		<Nullable>disable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<DefineConstants>$(DefineConstants);</DefineConstants>
+		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+		<EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
+		<!--AnalysisLevel>latest-all</AnalysisLevel-->
+		<NoWarn>1701;1702;CA1515;CA1062</NoWarn>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Compile Remove="Log\**" />
+		<Compile Remove="NotificationServerDist\**" />
+		<Content Remove="Log\**" />
+		<Content Remove="NotificationServerDist\**" />
+		<EmbeddedResource Remove="Log\**" />
+		<EmbeddedResource Remove="NotificationServerDist\**" />
+		<None Remove="Log\**" />
+		<None Remove="NotificationServerDist\**" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.4" />
+		<PackageReference Include="Serilog.Extensions.Logging" Version="9.0.1" />
+		<PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+		<PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+		<PackageReference Include="Swashbuckle.AspNetCore" Version="8.1.1" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Folder Include="Properties\" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Content Update="Etc\NotificationServer.json">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="Etc\NotificationServerService.json">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Content>
+	</ItemGroup>
+
+</Project>

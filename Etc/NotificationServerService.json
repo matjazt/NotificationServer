@@ -1,0 +1,22 @@
+{
+  "log": {
+    "consoleLevel": 99,
+    "fileLevel": 0,
+    "filePath": "log\\NotificationServerService.log",
+    "maxFileSize": 10000000,
+    "maxOldFiles": 5,
+    "maxWriteDelay": 500,
+    "logThreadId": false
+  },
+  "svcWatchDog": {
+    "workDir": "..",
+    "args": [
+      "bin\\NotificationServer.exe"
+    ],
+    "usePath": false,
+    "autoStart": true,
+    "restartDelay": 5000,
+    "shutdownTime": 3000,
+    "watchdogTimeout": 60000
+  }
+}

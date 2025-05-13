@@ -1,0 +1,20 @@
+﻿{
+  "LogTools": {
+    "ConsoleOutputEnabled": 1,
+    "MinimumFileLogLevel": "Debug",
+    "MinimumConsoleLogLevel": "Debug"
+  },
+  "RestService": {
+    "TcpPort": 7051,
+    "CorsOrigins": "*"
+  },
+  "SmoothMiddleware": {
+    "MaxRequestSize": 5000000,
+    "SharedSecret": "B7LN+46SN3oP8UT6vgdUiaFvmBWoycyxNcjJDUIDSTc=",
+    "WatchDogTimeout": 10
+  },
+  "SvcWatchDogClient": {
+    "IgnoreTimeouts": 0,
+    "UdpPingInterval": 20
+  }
+}
