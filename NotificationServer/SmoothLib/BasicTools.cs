@@ -11,6 +11,8 @@ namespace SmoothLib;
 /// </summary>
 public static class BasicTools
 {
+    private static object _cs = new object();
+
     private static string assemblyDirectory;
     private static string assemblyName;
     private static string baseDirectory;
@@ -36,9 +38,11 @@ public static class BasicTools
     {
         get
         {
-            assemblyDirectory ??= Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
-
-            return assemblyDirectory;
+            lock (_cs)
+            {
+                assemblyDirectory ??= Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
+                return assemblyDirectory;
+            }
         }
     }
 
@@ -49,12 +53,20 @@ public static class BasicTools
     {
         get
         {
-            assemblyName ??= Path.GetFileNameWithoutExtension(Assembly.GetEntryAssembly().Location);
-
-            return assemblyName;
+            lock (_cs)
+            {
+                assemblyName ??= Path.GetFileNameWithoutExtension(Assembly.GetEntryAssembly().Location);
+                return assemblyName;
+            }
         }
 
-        set => assemblyName = value;
+        set
+        {
+            lock (_cs)
+            {
+                assemblyName = value;
+            }
+        }
     }
 
     /// <summary>
@@ -64,13 +76,16 @@ public static class BasicTools
     {
         get
         {
-            if (baseDirectory == null)
+            lock (_cs)
             {
-                int binOffset = AssemblyDirectory.LastIndexOf($"{Path.DirectorySeparatorChar}bin", StringComparison.CurrentCultureIgnoreCase);
-                baseDirectory = binOffset < 0 ? AssemblyDirectory : AssemblyDirectory.Substring(0, binOffset);
-            }
+                if (baseDirectory == null)
+                {
+                    int binOffset = AssemblyDirectory.LastIndexOf($"{Path.DirectorySeparatorChar}bin", StringComparison.CurrentCultureIgnoreCase);
+                    baseDirectory = binOffset < 0 ? AssemblyDirectory : AssemblyDirectory.Substring(0, binOffset);
+                }
 
-            return baseDirectory;
+                return baseDirectory;
+            }
         }
     }
 
@@ -81,12 +96,22 @@ public static class BasicTools
     {
         get
         {
-            developmentMode ??= Directory.Exists(Path.Combine(BaseDirectory, "Properties"));
-
-            return developmentMode.Value;
+            lock (_cs)
+            {
+                // if running in development mode, the base folder should include at least one csproj file and at least one of the obj and Properties subfolders
+                developmentMode ??= (Directory.Exists(Path.Combine(BaseDirectory, "Properties")) || Directory.Exists(Path.Combine(BaseDirectory, "obj")))
+                    && Directory.EnumerateFiles(BaseDirectory, "*.csproj").Any();
+                return developmentMode.Value;
+            }
         }
 
-        set => developmentMode = value;
+        set
+        {
+            lock (_cs)
+            {
+                developmentMode = value;
+            }
+        }
     }
 
     /// <summary>
@@ -96,9 +121,11 @@ public static class BasicTools
     {
         get
         {
-            appDataFolder ??= DevelopmentMode || ServiceMode ? BaseDirectory : Path.Combine(Environment.GetEnvironmentVariable("APPDATA"), AssemblyName);
-
-            return appDataFolder;
+            lock (_cs)
+            {
+                appDataFolder ??= DevelopmentMode || ServiceMode ? BaseDirectory : Path.Combine(Environment.GetEnvironmentVariable("APPDATA"), AssemblyName);
+                return appDataFolder;
+            }
         }
     }
 

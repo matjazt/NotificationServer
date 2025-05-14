@@ -1,10 +1,13 @@
-﻿namespace SmoothLib;
+﻿using System.Text;
+
+namespace SmoothLib;
 
 /// <summary>
 /// Provides configuration management for applications, supporting loading and retrieving configuration 
 /// values from JSON files. The <c>Config</c> class allows you to load configuration from a file or an <see cref="IConfiguration"/>
 /// instance and retrieve configuration values in various types (string, int, double, enum, etc.). 
 /// It also supports encrypted values and automatic logging of accessed keys.
+/// Note that the getter methods tolerates quoted numeric and boolean values, which is not standard, but might be useful.
 /// </summary>
 public class Config
 {
@@ -20,7 +23,17 @@ public class Config
         Configuration = configuration;
     }
 
-    public Config(string fileName = null, bool optional = false, bool reloadOnChange = true)
+    public static Config FromFile(string fileName = null, bool optional = false, bool reloadOnChange = true)
+    {
+        return new Config(fileName, optional, reloadOnChange);
+    }
+
+    public static Config FromJsonText(string jsonText)
+    {
+        return new Config(jsonText);
+    }
+
+    private Config(string fileName, bool optional, bool reloadOnChange)
     {
         _fileName = fileName ?? Path.Combine(BasicTools.AppDataFolder, "etc", BasicTools.AssemblyName + ".json");
 
@@ -28,6 +41,14 @@ public class Config
         Directory.CreateDirectory(folderName);
         var builder = new ConfigurationBuilder();
         builder.SetBasePath(folderName).AddJsonFile(Path.GetFileName(_fileName), optional: optional, reloadOnChange: reloadOnChange);
+        Configuration = builder.Build();
+    }
+
+    private Config(string jsonText)
+    {
+        var builder = new ConfigurationBuilder();
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(jsonText));
+        builder.AddJsonStream(stream);
         Configuration = builder.Build();
     }
 
@@ -169,6 +190,33 @@ public class Config
         catch (Exception e) when (e is FormatException || e is OverflowException)
         {
             return defaultValue;
+        }
+    }
+
+    public bool GetBool(string section, string key, bool defaultValue, bool autoLog = true)
+    {
+        string v = GetString(section, key, null, autoLog);
+
+        if (String.IsNullOrWhiteSpace(v))
+        {
+            return defaultValue;
+        }
+
+        v = v.ToLower();
+
+        if (long.TryParse(v, out long l))
+        {
+            return l != 0;
+        }
+
+        switch (v)
+        {
+            case "false":
+                return false;
+            case "true":
+                return true;
+            default:
+                return defaultValue;
         }
     }
 

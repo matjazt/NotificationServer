@@ -7,7 +7,7 @@ sealed class MainClass
 {
     static void Main(string[] args)
     {
-        // BasicTools.DevelopmentMode = false;  // this should be automatically determined, based on the presence of the "Properties" folder in the base folder
+        // BasicTools.DevelopmentMode = false;  // this should be automatically determined
 
         // this is a service, not a GUI application, so we need to set this flag in order to work within installation folder instead of AppData
         BasicTools.ServiceMode = true;
@@ -21,8 +21,10 @@ sealed class MainClass
         // figure out and CD to the correct working directory; create it if needed
         BasicTools.SetStartupFolder();
 
-        // initialize configuration and logger
-        Config.Main = new Config();
+        // initialize configuration with default file name etc.
+        Config.Main = Config.FromFile();
+
+        // initialize logger
         LogTools.InitializeSerilog();
 
         // initialize SvcWatchDogClient
@@ -41,7 +43,7 @@ sealed class MainClass
 
         while (webServiceTask.IsCompleted == false
             && SvcWatchDogClient.Main.WaitForShutdownEvent(500) == false
-            && SvcWatchDogClient.Main.IsTimedOut() == false)
+            && SvcWatchDogClient.Main.IsTimedOut == false)
         {
             SvcWatchDogClient.Main.Ping(mainLoopTaskName, 30);
 

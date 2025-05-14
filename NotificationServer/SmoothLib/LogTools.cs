@@ -34,12 +34,11 @@ public static class LogTools
                 restrictedToMinimumLevel: minimumFileLogLevel,
                 retainedFileCountLimit: Config.Main.GetInt32(section, "RetainedFileCountLimit", 365),
                 outputTemplate: outputTemplate,
-                buffered: Config.Main.GetInt32(section, "Buffered", 1) != 0,
+                buffered: Config.Main.GetBool(section, "Buffered", true),
                 flushToDiskInterval: new TimeSpan(0, 0, Config.Main.GetInt32(section, "FlushToDiskIntervalSeconds", 5)));    // TODO: preveri če tole slučajno za brez veze žre CPU
 
-        if (Config.Main.GetInt32(section, "ConsoleOutputEnabled", 1) != 0)
+        if (Config.Main.GetBool(section, "ConsoleOutputEnabled", true))
         {
-
             loggerConfiguration.WriteTo.Console(
                 outputTemplate: outputTemplate,
                 restrictedToMinimumLevel: minimumConsoleLogLevel
@@ -141,5 +140,13 @@ public static class Lg
     public static void Fatal(Exception exception, string messageTemplate, [CallerMemberName] string memberName = "", [CallerFilePath] string sourceFilePath = "")
     {
         Log.Fatal(exception, BasicTools.GetFileNameWithoutExtension(sourceFilePath) + "." + memberName + ": " + messageTemplate);
+    }
+
+    public static void Assert(bool condition, [CallerMemberName] string memberName = "", [CallerFilePath] string sourceFilePath = "", [CallerLineNumber] int lineNumber = 0)
+    {
+        if (!condition)
+        {
+            Log.Fatal(BasicTools.GetFileNameWithoutExtension(sourceFilePath) + "." + memberName + $": assertion failure at line #{lineNumber}");
+        }
     }
 }

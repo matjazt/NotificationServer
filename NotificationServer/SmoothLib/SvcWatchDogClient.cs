@@ -26,12 +26,13 @@ public class SvcWatchDogClient : IDisposable
     private static string _section = "SvcWatchDogClient";
 
     // runtime
+    private Config _config;
     private object _cs = new();
     private Task _backgroundLoopTask;
     private AutoResetEvent _trigger = new AutoResetEvent(false);
     private long _nextCheck = long.MaxValue;
     private bool _stopped;
-    private string _udpPingTaskName = Guid.NewGuid().ToString();    // Unique name for the internal UDP ping task
+    private string _udpPingTaskName = $"_udpPing.{Environment.TickCount64}";    // Unique name for the internal UDP ping task
     private Dictionary<string, long> _tasks = [];
     private HashSet<string> _timedOutTasks = [];
 
@@ -48,8 +49,11 @@ public class SvcWatchDogClient : IDisposable
     /// </summary>
     public SvcWatchDogClient()
     {
+        // make sure we're always using the same config, even if Config.Main is set to something else
+        _config = Config.Main;
+
         // If Enabled is set to 0, then background loop won't do much, except for cleaning up the timed-out tasks
-        _enabled = Config.Main.GetInt32(_section, "Enabled", 1) != 0;
+        _enabled = _config.GetBool(_section, "Enabled", true);
 
         Lg.Information("initialized");
     }
@@ -67,17 +71,25 @@ public class SvcWatchDogClient : IDisposable
             throw new InvalidOperationException("SvcWatchDogClient is already stopped, not allowed to start it again.");
         }
 
+        _shutdownEvent = Environment.GetEnvironmentVariable("SHUTDOWN_EVENT");
+
+        if (!_enabled)
+        {
+            Lg.Information("not enabled");
+            return;
+        }
+
         Lg.Information("starting");
 
-        _udpPingInterval = Config.Main.GetInt32(_section, "UdpPingInterval", 10) * 1000;
+        _udpPingInterval = _config.GetInt32(_section, "UdpPingInterval", 10) * 1000;
         _watchdogSecret = Encoding.UTF8.GetBytes(Environment.GetEnvironmentVariable("WATCHDOG_SECRET") ?? "");
-        _shutdownEvent = Environment.GetEnvironmentVariable("SHUTDOWN_EVENT");
 
         if (int.TryParse(Environment.GetEnvironmentVariable("WATCHDOG_PORT"), out int watchdogPort) && watchdogPort > 0 && _udpPingInterval > 0)
         {
             _udpEndPoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), watchdogPort);
             // Schedule the first immediate ping
             _tasks[_udpPingTaskName] = 1;
+            Lg.Debug("UDP pinging configured");
         }
 
         _backgroundLoopTask = Task.Run(BackgroundLoop);
@@ -95,7 +107,7 @@ public class SvcWatchDogClient : IDisposable
         {
             _trigger.Set();
         }
-        while (_backgroundLoopTask.Wait(100) == false);
+        while (_backgroundLoopTask?.Wait(100) == false);
         Lg.Information("done");
     }
 
@@ -129,14 +141,44 @@ public class SvcWatchDogClient : IDisposable
     }
 
     /// <summary>
-    /// Determines whether any registered task has timed out.
+    /// True if at least one task has timed out and timeouts are not ignored; otherwise, false.
     /// </summary>
-    /// <returns>True if at least one task has timed out and timeouts are not ignored; otherwise, false.</returns>
-    public bool IsTimedOut()
+    public bool IsTimedOut
     {
-        lock (_cs)
+        get
         {
-            return _enabled && _timedOutTasks.Count > 0;
+            lock (_cs)
+            {
+                return _enabled && _timedOutTasks.Count > 0;
+            }
+        }
+    }
+
+    /// <summary>
+    /// True if UDP pinging is active at the moment.
+    /// </summary>
+    public bool IsUdpPingingActive
+    {
+        get
+        {
+            lock (_cs)
+            {
+                return _tasks.ContainsKey(_udpPingTaskName);
+            }
+        }
+    }
+
+    /// <summary>
+    /// List of all currently registered tasks. Mostly useful for testing purposes.
+    /// </summary>
+    public List<string> TaskList
+    {
+        get
+        {
+            lock (_cs)
+            {
+                return _tasks.Keys.ToList();
+            }
         }
     }
 
@@ -204,6 +246,7 @@ public class SvcWatchDogClient : IDisposable
                     {
                         if (timeoutDetected && name == _udpPingTaskName)
                         {
+                            Lg.Assert(!_tasks.ContainsKey(_udpPingTaskName));
                             // Skip the internal ping task if a timeout has already been detected
                             continue;
                         }
@@ -245,6 +288,9 @@ public class SvcWatchDogClient : IDisposable
                 }
                 else if (udpPingNeeded)
                 {
+#if DEBUG
+                    Lg.Assert(_tasks.ContainsKey(_udpPingTaskName));
+#endif
                     using var udpClient = new UdpClient();
                     udpClient.Send(_watchdogSecret, _watchdogSecret.Length, _udpEndPoint);
                     Lg.Verbose("UDP ping sent");
@@ -259,7 +305,7 @@ public class SvcWatchDogClient : IDisposable
         catch (Exception ex)
         {
             // this should never happen, but if it does, we need to know about it
-            Lg.Error(ex, "exception/bug in background loop, PLEASE CHECK AND FIX");
+            Lg.Fatal(ex, "exception/bug in background loop, PLEASE CHECK AND FIX");
         }
 
         Lg.Debug("done");
@@ -319,7 +365,7 @@ public class TimeoutDetector : IDisposable
     public TimeoutDetector(string name, int timeoutSeconds, bool namePostfix = true)
     {
         Name = namePostfix ? name + "_" + Guid.NewGuid().ToString() : name;
-        SvcWatchDogClient.Main.Ping(Name, timeoutSeconds);
+        SvcWatchDogClient.Main?.Ping(Name, timeoutSeconds);
     }
 
     /// <summary>
@@ -329,7 +375,7 @@ public class TimeoutDetector : IDisposable
     {
         if (!Closed)
         {
-            SvcWatchDogClient.Main.CloseTimeout(Name);
+            SvcWatchDogClient.Main?.CloseTimeout(Name);
             Closed = true;
         }
     }

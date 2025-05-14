@@ -1,0 +1,11 @@
+﻿{
+  "LogTools": {
+    "ConsoleOutputEnabled": 1,
+    "MinimumFileLogLevel": "Debug",
+    "MinimumConsoleLogLevel": "Debug"
+  },
+  "SvcWatchDogClient": {
+    "Enabled": 1,
+    "UdpPingInterval": 5
+  }
+}
