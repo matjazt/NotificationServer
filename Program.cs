@@ -28,7 +28,10 @@ sealed class MainClass
         // initialize SvcWatchDogClient
         SvcWatchDogClient.Main = new();
         string mainLoopTaskName = "mainLoop";
+        // Register a timeout (Ping) first, then Start the watchdog's background thread.
+        // Doing it the other way around could result in a (theoretical) freeze between Start and Ping going unnoticed.
         SvcWatchDogClient.Main.Ping(mainLoopTaskName, 30);
+        SvcWatchDogClient.Main.Start();
 
         Notifications.Service.NotificationService.Main = new();
 

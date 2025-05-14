@@ -36,7 +36,7 @@ public class SvcWatchDogClient : IDisposable
     private HashSet<string> _timedOutTasks = [];
 
     // configuration
-    private bool _ignoreTimeouts;
+    private bool _enabled;
     private int _udpPingInterval;
     private string _shutdownEvent;
     private byte[] _watchdogSecret;
@@ -48,11 +48,28 @@ public class SvcWatchDogClient : IDisposable
     /// </summary>
     public SvcWatchDogClient()
     {
-        // If IgnoreTimeouts is set, then IsTimedOut() always returns false, regardless of the task timeouts.
-        // This is useful for debugging, but shouldn't be used in production.
-        _ignoreTimeouts = Config.Main.GetInt32(_section, "IgnoreTimeouts", 0) != 0;
-        _udpPingInterval = Config.Main.GetInt32(_section, "UdpPingInterval", 10) * 1000;
+        // If Enabled is set to 0, then background loop won't do much, except for cleaning up the timed-out tasks
+        _enabled = Config.Main.GetInt32(_section, "Enabled", 1) != 0;
 
+        Lg.Information("initialized");
+    }
+
+    /// <summary>
+    /// Initiates the background loop for monitoring and UDP pinging.
+    /// NOTE: The Ping method can be called before starting the background loop.
+    /// It is recommended to do so for the program’s main loop (or multiple loops),
+    /// as this ensures there is no gap between starting UDP pings and beginning thread monitoring.
+    /// </summary>
+    public void Start()
+    {
+        if (_stopped)
+        {
+            throw new InvalidOperationException("SvcWatchDogClient is already stopped, not allowed to start it again.");
+        }
+
+        Lg.Information("starting");
+
+        _udpPingInterval = Config.Main.GetInt32(_section, "UdpPingInterval", 10) * 1000;
         _watchdogSecret = Encoding.UTF8.GetBytes(Environment.GetEnvironmentVariable("WATCHDOG_SECRET") ?? "");
         _shutdownEvent = Environment.GetEnvironmentVariable("SHUTDOWN_EVENT");
 
@@ -64,7 +81,7 @@ public class SvcWatchDogClient : IDisposable
         }
 
         _backgroundLoopTask = Task.Run(BackgroundLoop);
-        Lg.Information("started");
+        Lg.Information("done");
     }
 
     /// <summary>
@@ -119,7 +136,7 @@ public class SvcWatchDogClient : IDisposable
     {
         lock (_cs)
         {
-            return _ignoreTimeouts == false && _timedOutTasks.Count > 0;
+            return _enabled && _timedOutTasks.Count > 0;
         }
     }
 
@@ -131,6 +148,11 @@ public class SvcWatchDogClient : IDisposable
     public void Ping(string taskName, int timeoutSeconds)
     {
         Lg.Verbose($"taskName={taskName}, timeoutSeconds={timeoutSeconds}");
+        if (!_enabled)
+        {
+            return;
+        }
+
         long taskCheckTime = Environment.TickCount64 + (timeoutSeconds * 1000);
         bool doTrigger;
         lock (_cs)
@@ -164,66 +186,80 @@ public class SvcWatchDogClient : IDisposable
     /// </summary>
     private void BackgroundLoop()
     {
-        Lg.Debug("running");
-        while (!_stopped)
+        Lg.Debug("starting");
+        try
         {
-            // Check all tasks
-            long now = Environment.TickCount64;
-            bool timeoutDetected = false;
-            bool udpPingNeeded = false;
-            lock (_cs)
+            while (!_stopped)
             {
-                _nextCheck = long.MaxValue;
-                // create a copy of the task names to allow modifying the collection while iterating
-                var taskNames = _tasks.Keys.ToList();
-                foreach (string name in taskNames)
+                // Check all tasks
+                long now = Environment.TickCount64;
+                bool timeoutDetected = false;
+                bool udpPingNeeded = false;
+                lock (_cs)
                 {
-                    long timeout = _tasks[name];
-                    if (timeout <= now)
+                    _nextCheck = long.MaxValue;
+                    // create a copy of the task names to allow modifying the collection while iterating
+                    var taskNames = _tasks.Keys.ToList();
+                    foreach (string name in taskNames)
                     {
-                        if (name == _udpPingTaskName)
+                        if (timeoutDetected && name == _udpPingTaskName)
                         {
-                            // This is the internal ping task; we need to send a ping unless a timeout has been detected
-                            if (!timeoutDetected)
+                            // Skip the internal ping task if a timeout has already been detected
+                            continue;
+                        }
+
+                        long timeout = _tasks[name];
+                        if (timeout <= now)
+                        {
+                            if (name == _udpPingTaskName)
                             {
-                                timeout = _tasks[_udpPingTaskName] = now + _udpPingInterval;
-                                udpPingNeeded = true;
+                                // This is the internal ping task; we need to send a ping unless a timeout has been detected
+                                if (!timeoutDetected)
+                                {
+                                    timeout = _tasks[_udpPingTaskName] = now + _udpPingInterval;
+                                    udpPingNeeded = true;
+                                }
+                            }
+                            else if (_timedOutTasks.Add(name))
+                            {
+                                // A new timed-out task has been detected
+                                timeoutDetected = true;
+                                _tasks.Remove(name);
+                                // Prevent future UDP pings
+                                _tasks.Remove(_udpPingTaskName);
                             }
                         }
-                        else if (_timedOutTasks.Add(name))
+
+                        if (timeout > now && timeout < _nextCheck)
                         {
-                            // A new timed-out task has been detected
-                            timeoutDetected = true;
-                            _tasks.Remove(name);
-                            // Prevent future UDP pings
-                            _tasks.Remove(_udpPingTaskName);
+                            // When the loop ends, _nextCheck contains the nearest future timeout. This way we can determine optimal wait time.
+                            _nextCheck = timeout;
                         }
                     }
-
-                    if (timeout > now && timeout < _nextCheck)
-                    {
-                        // When the loop ends, _nextCheck contains the nearest future timeout. This way we can determine optimal wait time.
-                        _nextCheck = timeout;
-                    }
                 }
-            }
 
-            // Perform logging and UDP ping outside the critical section
-            if (timeoutDetected)
-            {
-                Lg.Error("timed out tasks: " + string.Join(",", _timedOutTasks));
-            }
-            else if (udpPingNeeded)
-            {
-                using var udpClient = new UdpClient();
-                udpClient.Send(_watchdogSecret, _watchdogSecret.Length, _udpEndPoint);
-                Lg.Verbose("UDP ping sent");
-            }
+                // Perform logging and UDP ping outside the critical section
+                if (timeoutDetected)
+                {
+                    Lg.Error("timed out tasks: " + string.Join(",", _timedOutTasks));
+                }
+                else if (udpPingNeeded)
+                {
+                    using var udpClient = new UdpClient();
+                    udpClient.Send(_watchdogSecret, _watchdogSecret.Length, _udpEndPoint);
+                    Lg.Verbose("UDP ping sent");
+                }
 
-            // Wait for the next timeout or a trigger, with a small buffer to avoid premature detection
-            // 60 seconds max is just a safety measure.
-            int waitTime = Math.Min(Math.Max((int)(_nextCheck - now + 50), 0), 60000);
-            _trigger.WaitOne(waitTime);
+                // Wait for the next timeout or a trigger, with a 50 ms buffer to avoid premature detection attempts
+                // 60 seconds maximum is just a safety measure, as well as 100 ms minimum.
+                int waitTime = Math.Min(Math.Max((int)(_nextCheck - now + 50), 100), 60000);
+                _trigger.WaitOne(waitTime);
+            }
+        }
+        catch (Exception ex)
+        {
+            // this should never happen, but if it does, we need to know about it
+            Lg.Error(ex, "exception/bug in background loop, PLEASE CHECK AND FIX");
         }
 
         Lg.Debug("done");
