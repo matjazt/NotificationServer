@@ -35,6 +35,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <None Include="..\README.md" Link="README.md" />
+	</ItemGroup>
+
+	<ItemGroup>
 	  <Content Update="Etc\NotificationServer.json">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Content>

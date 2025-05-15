@@ -2,9 +2,20 @@
 
 [**NotificationServer**](https://github.com/matjazt/NotificationServer) is a demonstration project showcasing the integration of a C# application with [SvcWatchDog](https://github.com/matjazt/SvcWatchDog). It functions as an independent REST service, offering a method to display message box notifications to all logged-in users
 
+## Challenge
+
+The objective was to design a monitoring framework capable of reliably detecting application freezes or infinite loops across most of the codebase. Theoretically, when developing without libraries that autonomously spawn new threads, freeze detection is feasible throughout the entire code. However, real-world development often relies on libraries that manage their own threading, making them impossible to monitor from the outset. Despite this, the framework should provide solid coverage of nearly all custom-written code.
+
+## Result
+
+A `Thread.Sleep(Timeout.Infinite)` (for example) should be detected throughout the code, except at the start of the `SmoothMiddleware.InvokeAsync` method, before the `TimeoutDetector` has been initialized.
+This basically means that no matter where the code freezes, **SvcWatchDogClient** or **SvcWatchDog** will detect it and make sure the application is restarted, ensuring that the service is always available.
+
 ## How it works
 
 **NotificationServer** is monitored by an internal **SvcWatchDogClient** and an external **SvcWatchDog**, working collaboratively. **SvcWatchDogClient** detects internal issues such as frozen threads and timeouts, and when a problem is identified, it initiates an application shutdown, relying on **SvcWatchDog** to restart it. If the shutdown process fails for any reason, **SvcWatchDog** detects the issue through missing **UDP pings** and forcefully restarts the service.
+
+If your're interested, search for `TimeoutDetector` and `SvcWatchDogClient.Main` in the code to see how the monitoring is implemented.
 
 ## How to install service
 

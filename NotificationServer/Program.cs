@@ -5,6 +5,8 @@ namespace NotificationServer;
 
 sealed class MainClass
 {
+    private static string loggedInUsersThreadName = "loggedInUsersThread";
+    private static EventWaitHandle loggedInUsersThreadEvent;
     static void Main(string[] args)
     {
         // BasicTools.DevelopmentMode = false;  // this should be automatically determined
@@ -41,6 +43,13 @@ sealed class MainClass
         var restService = new RestService();
         var webServiceTask = restService.App.RunAsync();
 
+        // for demonstation purposes, we will also run a thread that lists logged in users
+        // Create an event, which we'll use to shut down the thread when needed
+        loggedInUsersThreadEvent = new EventWaitHandle(false, EventResetMode.ManualReset);
+        // let's start monitoring it before it's even started - that's the only reliable way
+        SvcWatchDogClient.Main.Ping(loggedInUsersThreadName, 30);
+        var loggedInUsersThread = Task.Run(LoggedInUsersThread);
+
         while (webServiceTask.IsCompleted == false
             && SvcWatchDogClient.Main.WaitForShutdownEvent(500) == false
             && SvcWatchDogClient.Main.IsTimedOut == false)
@@ -56,13 +65,46 @@ sealed class MainClass
                 }
 
                 Lg.Information("key pressed: " + keyInfo.KeyChar);
+
+                if (keyInfo.KeyChar == 'l')
+                {
+                    var users = WindowsSessions.GetLoggedInUsers(null);
+                    foreach (var (sessionId, username) in users)
+                    {
+                        Lg.Information($"sessionId: {sessionId}, userName: {username}");
+                    }
+                }
             }
         }
 
         restService.Stop(webServiceTask);
 
+        loggedInUsersThreadEvent.Set();
+        loggedInUsersThread.Wait(1000);
+        loggedInUsersThreadEvent.Dispose();
+
         Lg.Information("exiting");
         SvcWatchDogClient.Main.Stop();
         Log.CloseAndFlush();
+    }
+
+    private static void LoggedInUsersThread()
+    {
+        Lg.Debug("started");
+        string userList = "";
+        do
+        {
+            SvcWatchDogClient.Main.Ping(loggedInUsersThreadName, 60);
+
+            var users = WindowsSessions.GetLoggedInUsers(null).OrderBy(x => x.sessionId).ThenBy(x => x.username);
+            string newUserList = string.Join("\n", users.Select(x => $"{x.sessionId}: {x.username}"));
+
+            if (newUserList != userList)
+            {
+                userList = newUserList;
+                Lg.Information("currently logged in users:\n" + userList);
+            }
+        } while (loggedInUsersThreadEvent.WaitOne(30000) == false);
+        Lg.Debug("stopped");
     }
 }

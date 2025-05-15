@@ -53,6 +53,8 @@ public class SmoothMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
+        using var timeoutDetector = new TimeoutDetector("HttpRequest", _watchDogTimeout);
+
         try
         {
             await LogRequest(context.Request);
@@ -63,8 +65,6 @@ public class SmoothMiddleware
         }
 
         var responseBodyStream = context.Response.Body;
-
-        using var timeoutDetector = new TimeoutDetector("HttpRequest", _watchDogTimeout);
 
         try
         {
