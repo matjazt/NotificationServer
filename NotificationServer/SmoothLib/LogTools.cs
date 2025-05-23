@@ -146,7 +146,7 @@ public static class Lg
     {
         if (!condition)
         {
-            Log.Fatal(BasicTools.GetFileNameWithoutExtension(sourceFilePath) + "." + memberName + $": assertion failure at line #{lineNumber}");
+            Log.Fatal(BasicTools.GetFileNameWithoutExtension(sourceFilePath) + "." + memberName + $": assertion failure at line {lineNumber}");
         }
     }
 }

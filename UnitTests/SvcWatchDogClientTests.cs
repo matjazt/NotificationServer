@@ -54,8 +54,9 @@ public class SvcWatchDogClientTests
         Assert.Equal(2, wd.TaskList.Count);
         Assert.False(wd.IsTimedOut);
         Assert.True(wd.IsUdpPingingActive);
-        using (var lazy = new TimeoutDetector(task2, 2))
+        using (new TimeoutDetector(task2, 2))
         {
+            Assert.Equal(3, wd.TaskList.Count);
             Thread.Sleep(1000);
         }
 

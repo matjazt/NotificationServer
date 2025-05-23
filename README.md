@@ -1,6 +1,6 @@
 ﻿# NotificationServer
 
-[**NotificationServer**](https://github.com/matjazt/NotificationServer) is a demonstration project showcasing the integration of a C# application with [SvcWatchDog](https://github.com/matjazt/SvcWatchDog). It functions as an independent REST service, offering a method to display message box notifications to all logged-in users
+[**NotificationServer**](https://github.com/matjazt/NotificationServer) is a demonstration project showcasing the integration of a C# application with [SvcWatchDog](https://github.com/matjazt/SvcWatchDog). It functions as an independent REST service, offering a method to display message box notifications to all logged-in users.
 
 ## Challenge
 
@@ -23,8 +23,8 @@ Preparation steps:
 - Build release version of **NotificationServer**. **Visual Studio 2022** is recommended, but you can use any other IDE that supports .NET 9.0.
 - Download [SvcWatchDog](https://github.com/matjazt/SvcWatchDog) - binary or source, it's up to you
 - Customize `scripts\pack.bat` to match your SvcWatchDog folder
-- Run `pack.bat` to prepare the distribution folder (**NotificationServerDist**)
-- copy **NotificationServerDist** contents to your preffered location
+- Run `pack.bat` to prepare the distribution folder (**dist**)
+- copy **dist** contents to your preffered location
 
 Installation steps (**Admin credentials required**):
 - install service: `service\NotificationServerService -i`
@@ -40,6 +40,8 @@ Then you can use Curl to send a REST request:
 `curl -X POST "http://localhost:7051/NotifyUsers" -H "sharedSecret: Q20mSdspXdnNwFEkY0eJ" -H "Content-Type: application/json" --data "{ \"title\": \"Test message\", \"text\": \"Have a great day!\"}"`
 
 A message box should pop up, containing the title and message from your test request.
+
+Both **NotificationServer** and **SvcWatchDog** generate detailed log files, which you are encouraged to review.
 
 ## Dependencies
 

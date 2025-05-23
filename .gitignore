@@ -4,3 +4,4 @@ obj/
 Log/
 packages/
 /NotificationServerDist
+/dist
