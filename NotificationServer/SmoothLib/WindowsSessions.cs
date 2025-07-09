@@ -200,8 +200,6 @@ public static class WindowsSessions
     public static List<(int sessionId, string username)> GetLoggedInUsers(string serverName)
     {
         nint sessionInfoPtr = IntPtr.Zero;
-        nint userPtr = IntPtr.Zero;
-        nint domainPtr = IntPtr.Zero;
         nint serverHandle = WTSOpenServer(serverName);
         try
         {
@@ -217,19 +215,27 @@ public static class WindowsSessions
                     var si = (WTS_SESSION_INFO)Marshal.PtrToStructure(currentSession, typeof(WTS_SESSION_INFO));
                     currentSession += Marshal.SizeOf(typeof(WTS_SESSION_INFO));
 
-                    WTSQuerySessionInformation(serverHandle, si.SessionID, WTS_INFO_CLASS.WTSUserName, out userPtr, out _);
-                    WTSQuerySessionInformation(serverHandle, si.SessionID, WTS_INFO_CLASS.WTSDomainName, out domainPtr, out _);
+                    nint userPtr = IntPtr.Zero;
+                    nint domainPtr = IntPtr.Zero;
 
-                    string domain = Marshal.PtrToStringAnsi(domainPtr);
-                    string userName = Marshal.PtrToStringAnsi(userPtr);
-
-                    if (!string.IsNullOrWhiteSpace(userName))
+                    try
                     {
-                        userList.Add((si.SessionID, $"{domain}\\{userName}"));
-                    }
+                        WTSQuerySessionInformation(serverHandle, si.SessionID, WTS_INFO_CLASS.WTSUserName, out userPtr, out _);
+                        WTSQuerySessionInformation(serverHandle, si.SessionID, WTS_INFO_CLASS.WTSDomainName, out domainPtr, out _);
 
-                    WTSFreeMemory(userPtr);
-                    WTSFreeMemory(domainPtr);
+                        string domain = Marshal.PtrToStringAnsi(domainPtr);
+                        string userName = Marshal.PtrToStringAnsi(userPtr);
+
+                        if (!string.IsNullOrWhiteSpace(userName))
+                        {
+                            userList.Add((si.SessionID, $"{domain}\\{userName}"));
+                        }
+                    }
+                    finally
+                    {
+                        AutoWTSFreeMemory(userPtr);
+                        AutoWTSFreeMemory(domainPtr);
+                    }
                 }
             }
 
@@ -238,8 +244,6 @@ public static class WindowsSessions
         finally
         {
             AutoWTSFreeMemory(sessionInfoPtr);
-            AutoWTSFreeMemory(userPtr);
-            AutoWTSFreeMemory(domainPtr);
 
             WTSCloseServer(serverHandle);
         }

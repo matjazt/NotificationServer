@@ -231,6 +231,9 @@ public class SvcWatchDogClient : IDisposable
         Lg.Debug("starting");
         try
         {
+            // ignore timeouts for the initial half of second
+            long timeSkewRecoveryTime = 0;
+            long expectedLoopTime = Environment.TickCount64;
             while (!_stopped)
             {
                 // Check all tasks
@@ -239,6 +242,22 @@ public class SvcWatchDogClient : IDisposable
                 bool udpPingNeeded = false;
                 lock (_cs)
                 {
+                    // detect if time changes unexpectedly, most likely when computer wakes up from sleep mode or hibernation.
+                    if (timeSkewRecoveryTime < now)
+                    {
+                        if ((expectedLoopTime + 5000) < now)
+                        {
+                            long timeSkewRecoveryInterval = _config.GetInt64(_section, "TimeSkewRecoveryInterval", 60);
+                            Lg.Information($"time skew detected, ignoring timeouts for the next {timeSkewRecoveryInterval} seconds");
+                            timeSkewRecoveryTime = now + (timeSkewRecoveryInterval * 1000);
+                        }
+                        else if (timeSkewRecoveryTime > 0)
+                        {
+                            timeSkewRecoveryTime = 0;
+                            Lg.Information($"TimeSkewRecoveryInterval is over, monitoring timeouts normally");
+                        }
+                    }
+
                     _nextCheck = long.MaxValue;
                     // create a copy of the task names to allow modifying the collection while iterating
                     var taskNames = _tasks.Keys.ToList();
@@ -263,7 +282,7 @@ public class SvcWatchDogClient : IDisposable
                                     udpPingNeeded = true;
                                 }
                             }
-                            else if (_timedOutTasks.Add(name))
+                            else if (now > timeSkewRecoveryTime && _timedOutTasks.Add(name))
                             {
                                 // A new timed-out task has been detected
                                 timeoutDetected = true;
@@ -299,6 +318,7 @@ public class SvcWatchDogClient : IDisposable
                 // Wait for the next timeout or a trigger, with a 50 ms buffer to avoid premature detection attempts
                 // 60 seconds maximum is just a safety measure, as well as 100 ms minimum.
                 int waitTime = Math.Min(Math.Max((int)(_nextCheck - now + 50), 100), 60000);
+                expectedLoopTime = now + waitTime;
                 _trigger.WaitOne(waitTime);
             }
         }

@@ -5,3 +5,4 @@ Log/
 packages/
 /NotificationServerDist
 /dist
+/NotificationServer/dist
