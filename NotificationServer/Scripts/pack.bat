@@ -1,4 +1,4 @@
-@SET SVCWATCHDOGFOLDER=..\..\..\SysTools\SvcWatchDog\SvcWatchDogDist
+@SET SVCWATCHDOGFOLDER=..\..\..\SysTools\SvcWatchDog\dist
 @SET OUTPUTFOLDER=..\dist
 
 @echo Folder %OUTPUTFOLDER% will be deleted and recreated. If you don't want this, press ctrl-c.
