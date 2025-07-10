@@ -1,7 +1,7 @@
 {
   "log": {
-    "consoleLevel": 99,
-    "fileLevel": 0,
+    "minConsoleLevel": 99,
+    "minFileLevel": 0,
     "filePath": "log\\NotificationServerService.log",
     "maxFileSize": 10000000,
     "maxOldFiles": 5,
