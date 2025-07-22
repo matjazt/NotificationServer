@@ -23,12 +23,16 @@ public static class LogTools
 
         var minimumFileLogLevel = Config.Main.GetEnum(section, "MinimumFileLogLevel", LogEventLevel.Verbose);
         var minimumConsoleLogLevel = Config.Main.GetEnum(section, "MinimumConsoleLogLevel", LogEventLevel.Verbose);
+        var minimumEmailLogLevel = Config.Main.GetEnum(section, "MinimumEmailLogLevel", LogEventLevel.Verbose);
+
+        var minimumLogLevel = minimumConsoleLogLevel < minimumFileLogLevel ? minimumConsoleLogLevel : minimumFileLogLevel;
+        minimumLogLevel = minimumLogLevel < minimumEmailLogLevel ? minimumLogLevel : minimumEmailLogLevel;
 
         // initialize serilog
         var loggerConfiguration = new LoggerConfiguration()
             .Enrich.FromLogContext()
             .Enrich.With(new ConditionalSourceContextEnricher()) // Add the custom enricher
-            .MinimumLevel.Is(minimumConsoleLogLevel < minimumFileLogLevel ? minimumConsoleLogLevel : minimumFileLogLevel)
+            .MinimumLevel.Is(minimumLogLevel)
             .WriteTo.File(logFile,
                 rollingInterval: Config.Main.GetEnum(section, "RollingInterval", RollingInterval.Day),
                 restrictedToMinimumLevel: minimumFileLogLevel,
@@ -43,6 +47,47 @@ public static class LogTools
                 outputTemplate: outputTemplate,
                 restrictedToMinimumLevel: minimumConsoleLogLevel
                 );
+        }
+
+        if (Config.Main.GetBool(section, "EmailOutputEnabled", false))
+        {
+            string username = Config.Main.GetString(section, "EmailUsername");
+            // NOTE: some suggestionDelay is needed because at this time, logger is not configured yet, so GetEncryptedString can not log
+            // the encryption suggestion. 5 seconds should be more than enough.
+            string password = Config.Main.GetEncryptedString(section, "EmailPassword", suggestionDelay: 5000);
+
+            var options = new Serilog.Sinks.Email.EmailSinkOptions
+            {
+                From = Config.Main.GetString(section, "EmailFrom"),
+                To = Config.Main.GetString(section, "EmailTo")?.Split(",", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)?.ToList(),
+                Host = Config.Main.GetString(section, "EmailHost"),
+                Port = Config.Main.GetInt32(section, "EmailPort", 465),
+                Subject = new Serilog.Formatting.Display.MessageTemplateTextFormatter(Config.Main.GetString(section, "EmailSubject", BasicTools.AssemblyName + " @ " + Environment.MachineName)),
+                ConnectionSecurity = Config.Main.GetEnum(section, "EmailConnectionSecurity", MailKit.Security.SecureSocketOptions.SslOnConnect),
+                Body = new Serilog.Formatting.Display.MessageTemplateTextFormatter(outputTemplate),
+            };
+
+            if (string.IsNullOrWhiteSpace(options.From)
+                || options.To == null || options.To.Count == 0
+                || string.IsNullOrWhiteSpace(options.Host)
+                || options.Port <= 0)
+            {
+                throw new ArgumentException("Email output is enabled, but not all required parameters are set in the configuration.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(username) || !string.IsNullOrEmpty(password))
+            {
+                options.Credentials = new System.Net.NetworkCredential(username, password);
+            }
+
+            loggerConfiguration.WriteTo.Email(
+                restrictedToMinimumLevel: minimumEmailLogLevel,
+                options: options,
+                batchingOptions: new()
+                {
+                    BatchSizeLimit = Config.Main.GetInt32(section, "EmailMaxLogs", 5000),
+                    BufferingTimeLimit = TimeSpan.FromSeconds(Config.Main.GetInt32(section, "EmailMaxDelay", 300)),
+                });
         }
 
         Log.Logger = loggerConfiguration.CreateLogger();

@@ -1,8 +1,21 @@
 ﻿{
   "LogTools": {
     "ConsoleOutputEnabled": true,
+    "EmailOutputEnabled": false,
     "MinimumFileLogLevel": "Debug",
-    "MinimumConsoleLogLevel": "Debug"
+    "MinimumConsoleLogLevel": "Debug",
+    "MinimumEmailLogLevel": "Warning",
+    "EmailFrom": "riff.raff at gmail.com",
+    "EmailTo": "janet@example.com, brad@example.com",
+    "OPTIONAL EmailSubject": "dammit Janet",
+    "EmailHost": "smtp.gmail.com",
+    "EmailPort": 465,
+    "EmailUserName": "riff.raff at gmail.com",
+    "EmailPassword": "riff raff's application passkey",
+    "EmailConnectionSecurity": "SslOnConnect",
+    "EmailMaxLogs": 10000,
+    "EmailMaxDelay": 300
+
   },
   "RestService": {
     "TcpPort": 7051,
@@ -16,5 +29,8 @@
   "SvcWatchDogClient": {
     "Enabled": true,
     "UdpPingInterval": 20
+  },
+  "CryptoTools": {
+    "OPTIONAL PasswordFile": "c:/windows/CryptoToolsPassword.txt"
   }
 }

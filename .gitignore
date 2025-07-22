@@ -6,3 +6,4 @@ packages/
 /NotificationServerDist
 /dist
 /NotificationServer/dist
+/NotificationServer/Etc/NotificationServer-private.json

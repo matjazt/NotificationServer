@@ -210,9 +210,22 @@ public static class BasicTools
     /// Sets the default password for the application. This password is used to derive the AES key and IV
     /// for encryption and decryption.
     /// </summary>
-    public static void SetDefaultPassword(string password)
+    public static void SetDefaultPassword(string passwordFile, string password)
     {
-        // _mainPassword = password;
+        if (!string.IsNullOrWhiteSpace(passwordFile))
+        {
+            password = "";
+            // Take all regular ascii characters from the file. Ignore non-ascii ones to avoid issues, caused by invisible characters
+            // (such as \n and \r) and various spaces (regular space, tab...).
+            foreach (char c in File.ReadAllText(passwordFile))
+            {
+                if (c > 32)
+                {
+                    password += c;
+                }
+            }
+        }
+
         (_mainAesKey, _mainAesInitializationVector) = GetKeyAndIvFromUnsaltedPassword(password);
     }
 

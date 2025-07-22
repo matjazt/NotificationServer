@@ -17,14 +17,14 @@ sealed class MainClass
         // set default decimal and timestamp formats
         BasicTools.SetDefaultFormats();
 
-        // set main password for the entire application - it is used to encrypt/decrypt sensitive configuration parameters and such
-        BasicTools.SetDefaultPassword("yLCJt6ZcPVvILzwgQRKh");
-
         // figure out and CD to the correct working directory; create it if needed
         BasicTools.SetStartupFolder();
 
         // initialize configuration with default file name etc.
         Config.Main = Config.FromFile();
+
+        // set main password for the entire application - it is used to encrypt/decrypt sensitive configuration parameters and such
+        BasicTools.SetDefaultPassword(Config.Main.GetString("CryptoTools", "PasswordFile"), "yLCJt6ZcPVvILzwgQRKh");
 
         // initialize logger
         LogTools.InitializeSerilog();

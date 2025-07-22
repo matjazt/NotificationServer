@@ -26,6 +26,7 @@
 		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.7" />
 		<PackageReference Include="Serilog.Extensions.Logging" Version="9.0.2" />
 		<PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+		<PackageReference Include="Serilog.Sinks.Email" Version="4.1.0" />
 		<PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
 		<PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.3" />
 	</ItemGroup>
@@ -39,6 +40,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <Content Update="Etc\NotificationServer-private.json">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Content>
 	  <Content Update="Etc\NotificationServer.json">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Content>

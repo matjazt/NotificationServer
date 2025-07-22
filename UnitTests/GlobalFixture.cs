@@ -18,7 +18,7 @@ public class GlobalFixture : IAsyncLifetime
         BasicTools.SetDefaultFormats();
 
         // set main password for the entire application - it is used to encrypt/decrypt sensitive configuration parameters and such
-        BasicTools.SetDefaultPassword("mTfTOZTq15Fwenjjk4Ek");
+        BasicTools.SetDefaultPassword(null, "mTfTOZTq15Fwenjjk4Ek");
 
         // figure out and CD to the correct working directory; create it if needed
         BasicTools.SetStartupFolder();
