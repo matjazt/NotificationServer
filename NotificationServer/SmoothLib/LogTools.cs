@@ -61,7 +61,7 @@ public static class LogTools
                 From = Config.Main.GetString(section, "EmailFrom"),
                 To = Config.Main.GetString(section, "EmailTo")?.Split(",", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)?.ToList(),
                 Host = Config.Main.GetString(section, "EmailHost"),
-                Port = Config.Main.GetInt32(section, "EmailPort", 465),
+                Port = Config.Main.GetInt32(section, "EmailPort", 25),
                 Subject = new Serilog.Formatting.Display.MessageTemplateTextFormatter(Config.Main.GetString(section, "EmailSubject", BasicTools.AssemblyName + " @ " + Environment.MachineName)),
                 ConnectionSecurity = Config.Main.GetEnum(section, "EmailConnectionSecurity", MailKit.Security.SecureSocketOptions.SslOnConnect),
                 Body = new Serilog.Formatting.Display.MessageTemplateTextFormatter(outputTemplate),
