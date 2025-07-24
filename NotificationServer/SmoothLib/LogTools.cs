@@ -87,6 +87,8 @@ public static class LogTools
                 {
                     BatchSizeLimit = Config.Main.GetInt32(section, "EmailMaxLogs", 5000),
                     BufferingTimeLimit = TimeSpan.FromSeconds(Config.Main.GetInt32(section, "EmailMaxDelay", 300)),
+                    EagerlyEmitFirstEvent = false,
+                    RetryTimeLimit = TimeSpan.FromSeconds(Config.Main.GetInt32(section, "EmailRetryTimeLimit", 900))
                 });
         }
 
