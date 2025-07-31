@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Net;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
@@ -271,5 +272,30 @@ public static class BasicTools
         using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
         byte[] decryptedBytes = decryptor.TransformFinalBlock(encryptedBytes, 0, encryptedBytes.Length);
         return Encoding.UTF8.GetString(decryptedBytes);
+    }
+
+    public static string ComputeSha256(string input)
+    {
+        using var sha256 = SHA256.Create();
+        byte[] hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(input));
+        return Convert.ToBase64String(hashBytes);
+    }
+
+    public static string NormalizeIpAddress(string ipStr)
+    {
+        try
+        {
+            var ip = IPAddress.Parse(ipStr);
+
+            // Check if it's IPv6-mapped IPv4 (starts with ::ffff:)
+            var normalizedIp = ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6 && ip.IsIPv4MappedToIPv6
+                ? ip.MapToIPv4()
+                : ip;
+            return normalizedIp.ToString();
+        }
+        catch (FormatException)
+        {
+            return ipStr;
+        }
     }
 }

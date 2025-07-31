@@ -1,4 +1,5 @@
-﻿using Microsoft.Net.Http.Headers;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.Net.Http.Headers;
 using Serilog;
 using System.Net;
 using System.Text;
@@ -31,9 +32,15 @@ public class SmoothMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly int _maxRequestSize;
-    private readonly string _sharedSecret;
     private readonly string _section = "SmoothMiddleware";
     private readonly int _watchDogTimeout;
+
+    private static readonly HashSet<string> _hiddenHeaders =
+    [
+        "X-Password",
+        "X-SharedSecret",
+        "Authorization"
+    ];
 
     private static readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
     {
@@ -46,7 +53,6 @@ public class SmoothMiddleware
     {
         _next = next;
         _maxRequestSize = Config.Main.GetInt32(_section, "MaxRequestSize", 1024 * 1024);
-        _sharedSecret = Config.Main.GetEncryptedString(_section, "SharedSecret");
         _watchDogTimeout = Config.Main.GetInt32(_section, "WatchDogTimeout", 300);  // 5 minutes should be enough
         Lg.Information("done");
     }
@@ -72,14 +78,11 @@ public class SmoothMiddleware
             using var memStream = new MemoryStream();
             context.Response.Body = memStream;
 
-            // Verify whether the shared secret is valid; keep in mind that an empty or missing shared secret is permitted, as its necessity is defined by the controller
-            if (_sharedSecret != null
-                && context.Request.Headers.TryGetValue("SharedSecret", out var sharedSecret)
-                && string.IsNullOrEmpty(sharedSecret) == false
-                && sharedSecret != _sharedSecret)
-            {
-                throw new SmoothException(Err.InvalidRequest, "invalid shared secret");
-            }
+            // log the [AllowAnonymous] and [Authorize] metadata for the endpoint
+            var endpoint = context.GetEndpoint();
+            bool allowAnonymous = endpoint?.Metadata.GetMetadata<IAllowAnonymous>() != null;
+            bool requiresAuth = endpoint?.Metadata.GetMetadata<IAuthorizeData>() != null;
+            Lg.Debug($"SmoothMiddleware: endpoint {endpoint?.DisplayName}: allowAnonymous: {allowAnonymous}, requiresAuth: {requiresAuth}");
 
             // Since we have a default CORS policy, this is not necessary.
             // context.Response.Headers.Append("Access-Control-Allow-Origin", "*");
@@ -236,7 +239,7 @@ public class SmoothMiddleware
             log.Add("Content type: " + request.ContentType);
         }
 
-        AddKeyValuePairs(request.Headers, "Headers", log);
+        AddKeyValuePairs(request.Headers.Where(x => !_hiddenHeaders.Contains(x.Key)), "Headers", log);
         AddKeyValuePairs(request.RouteValues, "RouteValues", log);
         AddKeyValuePairs(request.Query, "Query", log);
 

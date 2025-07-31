@@ -40,7 +40,7 @@ sealed class MainClass
         Notifications.Service.NotificationService.Main = new();
 
         // create rest service and run it in background
-        var restService = new RestService();
+        var restService = new RestService("RestService");
         var webServiceTask = restService.App.RunAsync();
 
         // for demonstation purposes, we will also run a thread that lists logged in users

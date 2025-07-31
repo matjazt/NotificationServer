@@ -1,15 +1,96 @@
-﻿using Serilog;
+﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Options;
+using Serilog;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
+using System.Text.RegularExpressions;
 
 namespace SmoothLib;
+
+public class SmoothAuthenticationSchemeOptions : AuthenticationSchemeOptions
+{
+    public Config Config { get; set; }
+    public string ConfigSection { get; set; }
+}
+
+public class UsernameAndPasswordAuthHandler : AuthenticationHandler<SmoothAuthenticationSchemeOptions>
+{
+    public UsernameAndPasswordAuthHandler(IOptionsMonitor<SmoothAuthenticationSchemeOptions> options,
+        ILoggerFactory logger, UrlEncoder encoder)
+        : base(options, logger, encoder)
+    {
+    }
+
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        if (!Request.Headers.TryGetValue("X-Username", out var username)
+            || string.IsNullOrWhiteSpace(username)
+            || !Request.Headers.TryGetValue("X-Password", out var password)
+            || string.IsNullOrWhiteSpace(password))
+        {
+            return Task.FromResult(AuthenticateResult.Fail("Missing or empty X-Username or X-Password authentication headers"));
+        }
+
+        string hash = BasicTools.ComputeSha256(password);
+
+        if (hash == Options.Config.GetString(Options.ConfigSection, $"Password.{username}"))
+        {
+            string ipAddress = BasicTools.NormalizeIpAddress(Context.Connection.RemoteIpAddress?.ToString());
+            string ipFilter = Options.Config.GetString(Options.ConfigSection, $"IpFilter.{username}");
+            if (!string.IsNullOrWhiteSpace(ipFilter) && !Regex.IsMatch(ipAddress, ipFilter))
+            {
+                return Task.FromResult(AuthenticateResult.Fail($"Source IP address {ipAddress} does not match the filter {ipFilter} for user {username}"));
+            }
+
+            var claims = new[] { new Claim(ClaimTypes.Name, username) };
+            var identity = new ClaimsIdentity(claims, Scheme.Name);  // "TESTIRAMBasicAuth"); // PAZI, tale je lahko tudi zgrešen
+            var principal = new ClaimsPrincipal(identity);
+            var ticket = new AuthenticationTicket(principal, Scheme.Name);
+            return Task.FromResult(AuthenticateResult.Success(ticket));
+        }
+
+        return Task.FromResult(AuthenticateResult.Fail($"Invalid X-Username ({username}) and/or X-Password (hash: {hash})"));
+    }
+}
+
+public class SharedSecretAuthHandler : AuthenticationHandler<SmoothAuthenticationSchemeOptions>
+{
+    public SharedSecretAuthHandler(IOptionsMonitor<SmoothAuthenticationSchemeOptions> options,
+        ILoggerFactory logger, UrlEncoder encoder)
+        : base(options, logger, encoder) { }
+
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        if (!Request.Headers.TryGetValue("X-SharedSecret", out var sharedSecret)
+            || string.IsNullOrEmpty(sharedSecret))
+        {
+            return Task.FromResult(AuthenticateResult.Fail("Missing or empty X-SharedSecret authentication header"));
+        }
+
+        string hash = BasicTools.ComputeSha256(sharedSecret);
+        if (hash == Options.Config.GetString(Options.ConfigSection, "SharedSecret"))
+        {
+            var claims = new[] { new Claim(ClaimTypes.Name, "SharedSecretClient") };
+            var identity = new ClaimsIdentity(claims, Scheme.Name);
+            var principal = new ClaimsPrincipal(identity);
+            var ticket = new AuthenticationTicket(principal, Scheme.Name);
+            return Task.FromResult(AuthenticateResult.Success(ticket));
+        }
+
+        return Task.FromResult(AuthenticateResult.Fail($"Invalid X-SharedSecret header (hash: {hash})"));
+    }
+}
 
 public class RestService
 {
     public WebApplication App { get; private set; }
 
-    private static string _section = "RestService";
+    private string _section;
 
-    public RestService()
+    public RestService(string section)
     {
+        _section = section;
+
         var builder = WebApplication.CreateBuilder();
 
         /*
@@ -113,6 +194,33 @@ public class RestService
             });
         });
 
+        bool authNeeded = false;
+        string sharedSecretSection = Config.Main.GetString(_section, "SharedSecretSection");
+        if (!string.IsNullOrWhiteSpace(sharedSecretSection))
+        {
+            string authName = "SharedSecretAuthentication";
+            builder.Services.AddAuthentication(authName)
+                .AddScheme<SmoothAuthenticationSchemeOptions, SharedSecretAuthHandler>(authName, options =>
+                {
+                    options.Config = Config.Main;
+                    options.ConfigSection = sharedSecretSection;
+                });
+            authNeeded = true;
+        }
+
+        string usernameAndPasswordSection = Config.Main.GetString(_section, "UsernameAndPasswordSection");
+        if (!string.IsNullOrWhiteSpace(usernameAndPasswordSection))
+        {
+            string authName = "UsernameAndPasswordAuthentication";
+            builder.Services.AddAuthentication(authName)
+                .AddScheme<SmoothAuthenticationSchemeOptions, UsernameAndPasswordAuthHandler>(authName, options =>
+                {
+                    options.Config = Config.Main;
+                    options.ConfigSection = usernameAndPasswordSection;
+                });
+            authNeeded = true;
+        }
+
         // Add MVC controllers
         builder.Services.AddControllers();
 
@@ -134,9 +242,14 @@ public class RestService
 
         // app.UseHttpsRedirection();
 
+        if (authNeeded)
+        {
+            App.UseAuthentication();
+            App.UseAuthorization();
+        }
+
         // Register your custom middleware
         App.UseMiddleware<SmoothMiddleware>();
-
         App.MapDefaultControllerRoute();
     }
 
