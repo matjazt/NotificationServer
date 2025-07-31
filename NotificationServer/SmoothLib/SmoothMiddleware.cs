@@ -232,7 +232,7 @@ public class SmoothMiddleware
             "Method: " + request.Method,
             "Path: " + request.Path.Value,
             "Protocol: " + request.Protocol,
-            "RemoteIpAddress: " + request.HttpContext?.Connection?.RemoteIpAddress
+            "RemoteIpAddress: " + BasicTools.NormalizeIpAddress(request.HttpContext?.Connection?.RemoteIpAddress)
         ];
         if (!string.IsNullOrEmpty(request.ContentType))
         {

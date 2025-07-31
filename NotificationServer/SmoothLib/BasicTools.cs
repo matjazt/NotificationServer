@@ -286,16 +286,19 @@ public static class BasicTools
         try
         {
             var ip = IPAddress.Parse(ipStr);
-
-            // Check if it's IPv6-mapped IPv4 (starts with ::ffff:)
-            var normalizedIp = ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6 && ip.IsIPv4MappedToIPv6
-                ? ip.MapToIPv4()
-                : ip;
-            return normalizedIp.ToString();
+            return NormalizeIpAddress(ip).ToString();
         }
         catch (FormatException)
         {
             return ipStr;
         }
+    }
+
+    public static IPAddress NormalizeIpAddress(IPAddress ip)
+    {
+        // Check if it's IPv6-mapped IPv4 (starts with ::ffff:)
+        return ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6 && ip.IsIPv4MappedToIPv6
+            ? ip.MapToIPv4()
+            : ip;
     }
 }
