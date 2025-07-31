@@ -43,7 +43,7 @@ public class UsernameAndPasswordAuthHandler : AuthenticationHandler<SmoothAuthen
             }
 
             var claims = new[] { new Claim(ClaimTypes.Name, username) };
-            var identity = new ClaimsIdentity(claims, Scheme.Name);  // "TESTIRAMBasicAuth"); // PAZI, tale je lahko tudi zgrešen
+            var identity = new ClaimsIdentity(claims, Scheme.Name);
             var principal = new ClaimsPrincipal(identity);
             var ticket = new AuthenticationTicket(principal, Scheme.Name);
             return Task.FromResult(AuthenticateResult.Success(ticket));
