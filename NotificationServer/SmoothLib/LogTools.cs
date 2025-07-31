@@ -51,16 +51,16 @@ public static class LogTools
 
         if (Config.Main.GetBool(section, "EmailOutputEnabled", false))
         {
-            string username = Config.Main.GetString(section, "EmailUsername");
+            string username = Config.Main.GetEncryptedString(section, "EmailUsername", autoLogEncryptionWarning: false, suggestionDelay: 5000);
             // NOTE: some suggestionDelay is needed because at this time, logger is not configured yet, so GetEncryptedString can not log
             // the encryption suggestion. 5 seconds should be more than enough.
             string password = Config.Main.GetEncryptedString(section, "EmailPassword", suggestionDelay: 5000);
 
             var options = new Serilog.Sinks.Email.EmailSinkOptions
             {
-                From = Config.Main.GetString(section, "EmailFrom"),
+                From = Config.Main.GetEncryptedString(section, "EmailFrom", autoLogEncryptionWarning: false, suggestionDelay: 5000),
                 To = Config.Main.GetString(section, "EmailTo")?.Split(",", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)?.ToList(),
-                Host = Config.Main.GetString(section, "EmailHost"),
+                Host = Config.Main.GetEncryptedString(section, "EmailHost", autoLogEncryptionWarning: false, suggestionDelay: 5000),
                 Port = Config.Main.GetInt32(section, "EmailPort", 25),
                 Subject = new Serilog.Formatting.Display.MessageTemplateTextFormatter(Config.Main.GetString(section, "EmailSubject", BasicTools.AssemblyName + " @ " + Environment.MachineName)),
                 ConnectionSecurity = Config.Main.GetEnum(section, "EmailConnectionSecurity", MailKit.Security.SecureSocketOptions.SslOnConnect),

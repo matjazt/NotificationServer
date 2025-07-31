@@ -85,7 +85,7 @@ public class Config
         return ret ?? defaultValue;
     }
 
-    public string GetEncryptedString(string section, string key, string defaultValue = null, string password = null, bool autoLog = false, bool autoLogSuggestion = true, int suggestionDelay = 0)
+    public string GetEncryptedString(string section, string key, string defaultValue = null, string password = null, bool autoLog = false, bool autoLogEncryptionWarning = true, bool autoLogSuggestion = true, int suggestionDelay = 0)
     {
         string v = GetString(section, key, null, autoLog);
         if (v == null)
@@ -99,7 +99,7 @@ public class Config
         }
         catch
         {
-            if (autoLogSuggestion)
+            if (autoLogEncryptionWarning || autoLogSuggestion)
             {
                 Task.Run(async () =>
                 {
@@ -108,8 +108,15 @@ public class Config
                         await Task.Delay(suggestionDelay); // wait for the specified delay before logging
                     }
 
-                    Lg.Warning($"failed to decrypt [{section}] {key}, using it in plain form");
-                    Lg.Information($"you should use encrypted value for the [{section}] {key} parameter: {BasicTools.Aes256CbcEncrypt(v, password)}");
+                    if (autoLogEncryptionWarning)
+                    {
+                        Lg.Warning($"failed to decrypt [{section}] {key}, using it in plain form");
+                    }
+
+                    if (autoLogSuggestion)
+                    {
+                        Lg.Information($"you should use encrypted value for the [{section}] {key} parameter: {BasicTools.Aes256CbcEncrypt(v, password)}");
+                    }
                 });
             }
 

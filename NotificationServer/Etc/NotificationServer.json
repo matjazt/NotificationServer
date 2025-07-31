@@ -1,29 +1,31 @@
 ﻿{
   "LogTools": {
     "ConsoleOutputEnabled": true,
-    "EmailOutputEnabled": false,
+    "EmailOutputEnabled": true,
     "MinimumFileLogLevel": "Debug",
     "MinimumConsoleLogLevel": "Debug",
     "MinimumEmailLogLevel": "Warning",
-    "EmailFrom": "riff.raff at gmail.com",
-    "EmailTo": "janet@example.com, brad@example.com",
-    "OPTIONAL EmailSubject": "dammit Janet",
-    "EmailHost": "smtp.gmail.com",
+    "EmailFrom": "Yg8uBhAHaLCm6r/r0Wkn3YBmsnLiZKEpU60Z5H5aX7o=",
+    "EmailTo": "mt.dev@gmx.com",
+    "EmailSubjectDISABLED": "NotificationServer Log",
+    "EmailHost": "sXb0SMRbD5MITcLc726Lvw==",
     "EmailPort": 465,
-    "EmailUserName": "riff.raff at gmail.com",
-    "EmailPassword": "riff raff's application passkey",
+    "EmailUserName": "kmb4oRvjB2WTHjJWAnjcOw==",
+    "EmailPassword": "pmtAAcejrJfkf5sRzSx5LSzhJTTWek6gg4qUPTN5Clg=",
     "EmailConnectionSecurity": "SslOnConnect",
     "EmailMaxLogs": 10000,
     "EmailMaxDelay": 300
-
   },
   "RestService": {
     "TcpPort": 7051,
-    "CorsOrigins": "*"
+    "CorsOrigins": "*",
+    "SharedSecretSection": "RestSecurity"
+  },
+  "RestSecurity": {
+    "SharedSecret": "RnoJGy69TcUrbWP9wPLj/R4h3UelSL2GCO+kf3k7Kh0="
   },
   "SmoothMiddleware": {
     "MaxRequestSize": 5000000,
-    "SharedSecret": "B7LN+46SN3oP8UT6vgdUiaFvmBWoycyxNcjJDUIDSTc=",
     "WatchDogTimeout": 10
   },
   "SvcWatchDogClient": {
@@ -31,6 +33,6 @@
     "UdpPingInterval": 20
   },
   "CryptoTools": {
-    "OPTIONAL PasswordFile": "c:/windows/CryptoToolsPassword.txt"
+    "PasswordFile": "c:/windows/CryptoToolsPassword.txt"
   }
 }

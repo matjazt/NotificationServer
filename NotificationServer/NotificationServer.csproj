@@ -40,9 +40,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <Content Update="Etc\NotificationServer-private.json">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Content>
 	  <Content Update="Etc\NotificationServer.json">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Content>
