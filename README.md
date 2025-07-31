@@ -34,7 +34,7 @@ Installation steps (**Admin credentials required**):
 
 ## How to test
 
-First you need to either run the software, either install it as a Windows service.  
+First you need to either run the software, either install it as a Windows service. You might want to fix email configuration or disable it (set `EmailOutputEnabled` to false in `NotificationServer.json`).
 Then you can use Curl to send a REST request:  
 
 `curl -X POST "http://localhost:7051/NotifyUsers" -H "sharedSecret: Q20mSdspXdnNwFEkY0eJ" -H "Content-Type: application/json" --data "{ \"title\": \"Test message\", \"text\": \"Have a great day!\"}"`
